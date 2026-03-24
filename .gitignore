@@ -1,0 +1,42 @@
+# Binaries
+agent
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Mac OS
+.DS_Store
+
+# IDEs
+.idea/
+.vscode/
+
+# Config (Optional: if you want to ignore local config)
+config.json
+
+# Environment variables (may contain secrets)
+.env
+.env.local
+.env.*.local
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+dist/
+build/
+.next/
+
+# Docker Volumes / Data
+mosquitto/data/
+mosquitto/log/
+redis/data/
+postgres/data/
+rabbitmq/data/
+rabbitmq/log/
+
+# Go
+vendor/
+go.work

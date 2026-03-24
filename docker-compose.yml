@@ -1,0 +1,147 @@
+services:
+  # =========================================
+  # 1. Core Services (Mocked with Nginx for Demo)
+  # =========================================
+
+  status-manager-service:
+    build: ../status-manager-service
+    ports: [ "3001:3001" ]
+    depends_on: [ rabbitmq, redis, postgres ]
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_DATABASE=${DB_DATABASE}
+      - REDIS_HOST=nest_redis
+      - RABBITMQ_URI=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@nest_rabbitmq:5672
+      - MQTT_BROKER_URL=mqtt://nest_mosquitto:1883
+      - PORT=3001
+      - AGENT_SECRET=${AGENT_SECRET}
+
+  alert-notification-service:
+    build: ../alert-notification-service
+    volumes:
+      - ../alert-notification-service:/app
+      - /app/node_modules
+    ports: [ "3003:3003" ]
+    depends_on: [ rabbitmq, mosquitto ]
+    environment:
+      - MQTT_BROKER_URL=mqtt://nest_mosquitto:1883
+      - PORT=3003
+
+  auth-service:
+    build: ../auth-service
+    # volumes:
+    #   - ../auth-service:/app
+    #   - /app/node_modules
+    ports: [ "3005:3005" ]
+    depends_on: [ postgres ]
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_DATABASE=${DB_DATABASE}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=7d
+      - PORT=3005
+      - KEYCLOAK_ISSUER=http://host.docker.internal:8080/realms/web-frontend
+      - KEYCLOAK_JWKS_URI=http://host.docker.internal:8080/realms/web-frontend/protocol/openid-connect/certs
+      - FRONTEND_URL=http://localhost:3000
+      - KEYCLOAK_REALM=web-frontend
+      - KEYCLOAK_ADMIN_CLIENT_ID=auth-service-admin
+      - KEYCLOAK_ADMIN_CLIENT_SECRET=${KEYCLOAK_ADMIN_CLIENT_SECRET}
+      - KEYCLOAK_SERVER_URL=http://host.docker.internal:8080
+      - KEYCLOAK_ADMIN_SERVER_URL=http://host.docker.internal:8080
+      - KEYCLOAK_CLIENT_ID=web-frontend-client
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+
+  health-monitoring-service:
+    build: ../health-monitoring-service
+    ports: [ "3004:3004" ]
+    depends_on: [ rabbitmq, redis ]
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_DATABASE=${DB_DATABASE}
+      - REDIS_HOST=nest_redis
+      - MQTT_BROKER_URL=mqtt://nest_mosquitto:1883
+      - STATUS_MANAGER_SERVICE_URL=http://status-manager-service:3001
+      - PORT=3004
+
+  dashboard-report-service:
+    build: ../dashboard-report-service
+    ports: [ "3002:3002" ]
+    depends_on: [ postgres ]
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_DATABASE=${DB_DATABASE}
+      - PORT=3002
+
+  monitoring-website:
+    profiles: [ "manual" ]
+    build: ../monitoring-website
+    volumes:
+      - ../monitoring-website:/app
+      - /app/node_modules
+    ports: [ "3000:3000" ]
+    depends_on: [ status-manager-service, dashboard-report-service ]
+    environment:
+      - INTERNAL_API_URL=http://dashboard-report-service:3002
+      - NEXT_PUBLIC_API_URL=http://localhost:3002 # Public URL for browser
+      - AUTH_SERVICE_URL=http://auth-service:3005 # Internal URL for Server-Side Rendering
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: nest_rabbitmq
+    ports: [ "5672:5672", "15672:15672" ]
+
+  redis:
+    image: redis:alpine
+    container_name: nest_redis
+    ports: [ "6379:6379" ]
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: nest_mosquitto
+    ports: [ "1883:1883", "9001:9001" ]
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-db
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: monitoring
+    ports:
+      - "5432:5432"
+
+  # =========================================
+  # 3. Monitor Agent
+  # =========================================
+  container-monitor:
+    build: .
+    container_name: container-monitor
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "3030:3030"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config.json:/etc/monitor/config.json:ro
+    environment:
+      - CONFIG_PATH=/etc/monitor/config.json
+      - TZ=Asia/Bangkok
+    depends_on:
+      - rabbitmq
+      - redis

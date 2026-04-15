@@ -1,0 +1,52 @@
+{
+  "poll_interval_ms": 2000,
+  "stats_interval_ms": 5000,
+  "http_timeout_ms": 2000,
+  "containers": [
+    {
+      "container_name": "/nest_rabbitmq",
+      "healthcheck_url": "http://nest_rabbitmq:15672",
+      "log_keywords": ["ERROR", "panic", "FATAL"]
+    },
+    {
+      "container_name": "/nest_redis",
+      "healthcheck_url": "",
+      "log_keywords": ["ERROR", "panic", "FATAL"]
+    },
+    {
+      "container_name": "/postgres-db",
+      "healthcheck_url": "",
+      "log_keywords": ["ERROR", "PANIC", "FATAL"]
+    },
+    {
+      "container_name": "/nest_mosquitto",
+      "healthcheck_url": "",
+      "log_keywords": ["ERROR", "panic", "FATAL"]
+    },
+    {
+      "container_name": "/status-manager-service",
+      "healthcheck_url": "${STATUS_MANAGER_URL}",
+      "log_keywords": ["ERROR", "panic", "FATAL", "Exception"]
+    },
+    {
+      "container_name": "/dashboard-report-service",
+      "healthcheck_url": "${DASHBOARD_URL}",
+      "log_keywords": ["ERROR", "panic", "FATAL", "Exception"]
+    },
+    {
+      "container_name": "/alert-notification-service",
+      "healthcheck_url": "${ALERT_URL}",
+      "log_keywords": ["ERROR", "panic", "FATAL", "Exception"]
+    },
+    {
+      "container_name": "/health-monitoring-service",
+      "healthcheck_url": "${HEALTH_URL}",
+      "log_keywords": ["ERROR", "panic", "FATAL", "Exception"]
+    },
+    {
+      "container_name": "/auth-service",
+      "healthcheck_url": "http://auth-service:3005",
+      "log_keywords": ["ERROR", "panic", "FATAL", "Exception"]
+    }
+  ]
+}

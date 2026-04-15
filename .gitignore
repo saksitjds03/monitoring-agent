@@ -40,3 +40,4 @@ rabbitmq/log/
 # Go
 vendor/
 go.work
+keycloak_data/
